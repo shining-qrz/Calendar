@@ -215,21 +215,28 @@ export struct MonthView {
           .fontSize(16)
           .fontWeight(FontWeight.Bold)
           .fontColor('#333333')
-          .margin({ bottom: 4 })
+          .margin({ bottom: 6 })
+          .padding({top: 5})
         
-        // 第二行：节日 + 干支信息
+        // 第二行：节日 + 干支信息（紧凑的圆角矩形）
         Row() {
           Text(this.getFestivalText())
-            .fontSize(12)
-            .fontColor('#666666')
+            .fontSize(11)
+            .fontColor('#555555')
         }
+        .alignItems(VerticalAlign.Center)
+        .borderRadius(12)
+        .padding({right: 12, top: 2, bottom: 6 })
+        .margin({ top: 2 })
+        .width('100%') // Row占满Column宽度
       }
-      .width('100%')
+      .width('98%') // 减小宽度
       .backgroundColor('#FFF8DC')
-      .borderRadius(8)
-      .padding(16)
-      .margin({ top: 8, left: 20, right: 20 })
-      .alignItems(HorizontalAlign.Start)
+      .borderRadius(12)
+      .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+      .margin({ top: 8 })
+      .alignItems(HorizontalAlign.Start) // Column内部元素左对齐
+      .alignSelf(ItemAlign.Center) // 整个组件居中
     }
     .width('100%')
     .height('100%')
