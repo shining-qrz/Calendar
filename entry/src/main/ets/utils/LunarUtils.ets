@@ -133,6 +133,134 @@ export class LunarUtils {
     return `${yearTianGan}${yearDiZhi}${yearShengXiao}年`;
   }
   
+  // 获取完整的干支信息（年月日）
+  static getFullGanZhi(date: Date): string {
+    const yearGanZhi = LunarUtils.getLunarGanZhi(date);
+    const monthGanZhi = LunarUtils.getMonthGanZhi(date);
+    const dayGanZhi = LunarUtils.getDayGanZhi(date);
+    
+    return `${yearGanZhi}  ${monthGanZhi}月  ${dayGanZhi}日`;
+  }
+  
+  // 计算干支月（按节气划分）
+  static getMonthGanZhi(date: Date): string {
+    // 以2025年12月21日冬至日为基准，应该是戊子月
+    // 戊=4（天干），子=0（地支）
+    
+    const baseDate = new Date(2025, 11, 21); // 2025年12月21日
+    const currentDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    // 计算年份差异
+    const yearDiff = date.getFullYear() - 2025;
+    
+    // 计算节气月差异
+    const baseSolarMonth = 12; // 基准日期的节气月（十二月）
+    const currentSolarMonth = LunarUtils.getSolarMonth(date);
+    
+    // 总的节气月差异
+    let totalMonthDiff = yearDiff * 12 + (currentSolarMonth - baseSolarMonth);
+    
+    // 2025年12月21日是戊子月：戊=4，子=0
+    const baseTianGanIndex = 4; // 戊
+    const baseDiZhiIndex = 0;   // 子
+    
+    // 计算当前日期的月干支
+    let monthTianGanIndex = (baseTianGanIndex + totalMonthDiff) % 10;
+    let monthDiZhiIndex = (baseDiZhiIndex + totalMonthDiff) % 12;
+    
+    // 处理负数情况
+    if (monthTianGanIndex < 0) {
+      monthTianGanIndex = (monthTianGanIndex % 10 + 10) % 10;
+    }
+    if (monthDiZhiIndex < 0) {
+      monthDiZhiIndex = (monthDiZhiIndex % 12 + 12) % 12;
+    }
+    
+    let monthTianGan = LunarUtils.TIAN_GAN[monthTianGanIndex];
+    let monthDiZhi = LunarUtils.DI_ZHI[monthDiZhiIndex];
+    
+    return `${monthTianGan}${monthDiZhi}`;
+  }
+  
+  // 根据节气确定节气月份（1-12）
+  private static getSolarMonth(date: Date): number {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    
+    // 简化版：根据公历月份和大致节气日期判断节气月
+    // 正月（寅月）：立春到惊蛰前
+    // 二月（卯月）：惊蛰到清明前
+    // 三月（辰月）：清明到立夏前
+    // 四月（巳月）：立夏到芒种前
+    // 五月（午月）：芒种到小暑前
+    // 六月（未月）：小暑到立秋前
+    // 七月（申月）：立秋到白露前
+    // 八月（酉月）：白露到寒露前
+    // 九月（戌月）：寒露到立冬前
+    // 十月（亥月）：立冬到大雪前
+    // 十一月（子月）：大雪到小寒前
+    // 十二月（丑月）：小寒到立春前
+    
+    if (month === 1) {
+      return day < 5 ? 12 : 1; // 小寒前为十二月，小寒后为正月
+    } else if (month === 2) {
+      return day < 4 ? 1 : 2; // 立春前为正月，立春后为二月
+    } else if (month === 3) {
+      return day < 5 ? 2 : 3; // 惊蛰前为二月，惊蛰后为三月
+    } else if (month === 4) {
+      return day < 4 ? 3 : 4; // 清明前为三月，清明后为四月
+    } else if (month === 5) {
+      return day < 5 ? 4 : 5; // 立夏前为四月，立夏后为五月
+    } else if (month === 6) {
+      return day < 5 ? 5 : 6; // 芒种前为五月，芒种后为六月
+    } else if (month === 7) {
+      return day < 7 ? 6 : 7; // 小暑前为六月，小暑后为七月
+    } else if (month === 8) {
+      return day < 7 ? 7 : 8; // 立秋前为七月，立秋后为八月
+    } else if (month === 9) {
+      return day < 7 ? 8 : 9; // 白露前为八月，白露后为九月
+    } else if (month === 10) {
+      return day < 8 ? 9 : 10; // 寒露前为九月，寒露后为十月
+    } else if (month === 11) {
+      return day < 7 ? 10 : 11; // 立冬前为十月，立冬后为十一月
+    } else { // month === 12
+      return day < 7 ? 11 : 12; // 大雪前为十一月，大雪后为十二月
+    }
+  }
+  
+  // 计算干支日
+  static getDayGanZhi(date: Date): string {
+    // 使用2025年12月21日（冬至）为基准日（甲子日）
+    const baseDate = new Date(2025, 11, 21); // 2025年12月21日
+    const currentDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    // 计算距离基准日的天数
+    const timeDiff = currentDate.getTime() - baseDate.getTime();
+    const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    
+    // 2025年12月21日是甲子日，甲=0，子=0
+    const baseTianGanIndex = 0; // 甲
+    const baseDiZhiIndex = 0;   // 子
+    
+    // 计算当前日期的干支
+    let dayTianGanIndex = (baseTianGanIndex + daysDiff) % 10;
+    let dayDiZhiIndex = (baseDiZhiIndex + daysDiff) % 12;
+    
+    // 处理负数情况
+    if (dayTianGanIndex < 0) {
+      dayTianGanIndex = (dayTianGanIndex % 10 + 10) % 10;
+    }
+    if (dayDiZhiIndex < 0) {
+      dayDiZhiIndex = (dayDiZhiIndex % 12 + 12) % 12;
+    }
+    
+    let dayTianGan = LunarUtils.TIAN_GAN[dayTianGanIndex];
+    let dayDiZhi = LunarUtils.DI_ZHI[dayDiZhiIndex];
+    
+    return `${dayTianGan}${dayDiZhi}`;
+  }
+  
   // 获取节气信息（使用SolarTermUtils）
   static getSolarTerm(date: Date): string | null {
     return SolarTermUtils.getSolarTerm(date);
