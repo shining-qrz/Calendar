@@ -158,91 +158,118 @@ struct Index {
         .height('100%')
         .justifyContent(FlexAlign.Center)
       } else {
-        // 顶部工具栏
-        Row() {
+        Column() {
+          // 顶部工具栏（只保留"+"按钮）
           Row() {
-            Button('月')
-              .backgroundColor(this.currentView === ViewType.MONTH ? '#007AFF' : '#F2F2F2')
-              .fontColor(this.currentView === ViewType.MONTH ? Color.White : '#333333')
-              .fontSize(14)
-              .onClick(() => {
-                this.currentView = ViewType.MONTH;
-              })
+            Blank()
             
-            Button('周')
-              .backgroundColor(this.currentView === ViewType.WEEK ? '#007AFF' : '#F2F2F2')
-              .fontColor(this.currentView === ViewType.WEEK ? Color.White : '#333333')
-              .fontSize(14)
-              .margin({ left: 4, right: 4 })
+            Button('+')
+              .backgroundColor('#007AFF')
+              .fontColor(Color.White)
+              .fontSize(18)
+              .width(40)
+              .height(40)
+              .borderRadius(20)
               .onClick(() => {
-                this.currentView = ViewType.WEEK;
-              })
-            
-            Button('日')
-              .backgroundColor(this.currentView === ViewType.DAY ? '#007AFF' : '#F2F2F2')
-              .fontColor(this.currentView === ViewType.DAY ? Color.White : '#333333')
-              .fontSize(14)
-              .onClick(() => {
-                this.currentView = ViewType.DAY;
+                this.showEventDialog();
               })
           }
-          .layoutWeight(1)
-          .justifyContent(FlexAlign.Center)
+          .width('100%')
+          .height(60)
+          .padding({ left: 16, right: 16 })
+          .backgroundColor('#FFFFFF')
+          .border({ width: { bottom: 1 }, color: '#E0E0E0' })
           
-          Button('+')
-            .backgroundColor('#007AFF')
-            .fontColor(Color.White)
-            .fontSize(18)
-            .width(40)
-            .height(40)
-            .borderRadius(20)
+          // 日历视图
+          Column() {
+            if (this.currentView === ViewType.MONTH) {
+              MonthView({
+                events: this.events,
+                selectedDate: this.selectedDate,
+                onDateSelected: (date: Date) => {
+                  this.selectedDate = date;
+                },
+                onDateDoubleClick: (date: Date) => {
+                  this.showEventDialog(undefined, date);
+                }
+              })
+            } else if (this.currentView === ViewType.WEEK) {
+              WeekView({
+                events: this.events,
+                selectedDate: this.selectedDate,
+                onDateSelected: (date: Date) => {
+                  this.selectedDate = date;
+                },
+                onEventClick: (event: CalendarEvent) => {
+                  this.showEventDialog(event);
+                }
+              })
+            } else {
+              DayView({
+                currentDate: this.selectedDate,
+                events: this.events,
+                onEventClick: (event: CalendarEvent) => {
+                  this.showEventDialog(event);
+                },
+                onTimeSlotClick: (date: Date, hour: number) => {
+                  const eventDate = new Date(date);
+                  eventDate.setHours(hour, 0, 0, 0);
+                  this.showEventDialog(undefined, eventDate);
+                }
+              })
+            }
+          }
+          .layoutWeight(1)
+          .width('100%')
+          
+          // 底部导航栏
+          Row() {
+            Column() {
+              Text('月')
+                .fontSize(14)
+                .fontColor(this.currentView === ViewType.MONTH ? '#007AFF' : '#666666')
+                .fontWeight(this.currentView === ViewType.MONTH ? FontWeight.Bold : FontWeight.Normal)
+            }
+            .layoutWeight(1)
+            .height('100%')
+            .justifyContent(FlexAlign.Center)
             .onClick(() => {
-              this.showEventDialog();
+              this.currentView = ViewType.MONTH;
             })
+            
+            Column() {
+              Text('周')
+                .fontSize(14)
+                .fontColor(this.currentView === ViewType.WEEK ? '#007AFF' : '#666666')
+                .fontWeight(this.currentView === ViewType.WEEK ? FontWeight.Bold : FontWeight.Normal)
+            }
+            .layoutWeight(1)
+            .height('100%')
+            .justifyContent(FlexAlign.Center)
+            .onClick(() => {
+              this.currentView = ViewType.WEEK;
+            })
+            
+            Column() {
+              Text('日')
+                .fontSize(14)
+                .fontColor(this.currentView === ViewType.DAY ? '#007AFF' : '#666666')
+                .fontWeight(this.currentView === ViewType.DAY ? FontWeight.Bold : FontWeight.Normal)
+            }
+            .layoutWeight(1)
+            .height('100%')
+            .justifyContent(FlexAlign.Center)
+            .onClick(() => {
+              this.currentView = ViewType.DAY;
+            })
+          }
+          .width('100%')
+          .height(60)
+          .backgroundColor('#FFFFFF')
+          .border({ width: { top: 1 }, color: '#E0E0E0' })
         }
         .width('100%')
-        .height(60)
-        .padding({ left: 16, right: 16 })
-        .backgroundColor('#FFFFFF')
-        .border({ width: { bottom: 1 }, color: '#E0E0E0' })
-        
-        // 日历视图
-        if (this.currentView === ViewType.MONTH) {
-          MonthView({
-            events: this.events,
-            selectedDate: this.selectedDate,
-            onDateSelected: (date: Date) => {
-              this.selectedDate = date;
-            },
-            onDateDoubleClick: (date: Date) => {
-              this.showEventDialog(undefined, date);
-            }
-          })
-        } else if (this.currentView === ViewType.WEEK) {
-          WeekView({
-            events: this.events,
-            selectedDate: this.selectedDate,
-            onDateSelected: (date: Date) => {
-              this.selectedDate = date;
-            },
-            onEventClick: (event: CalendarEvent) => {
-              this.showEventDialog(event);
-            }
-          })
-        } else {
-          DayView({
-            currentDate: this.selectedDate,
-            events: this.events,
-            onEventClick: (event: CalendarEvent) => {
-              this.showEventDialog(event);
-            },
-            onTimeSlotClick: (date: Date, hour: number) => {
-              const eventDate = new Date(date);
-              eventDate.setHours(hour, 0, 0, 0);
-              this.showEventDialog(undefined, eventDate);
-            }
-          })
-        }
+        .height('100%')
       }
     }
     .width('100%')

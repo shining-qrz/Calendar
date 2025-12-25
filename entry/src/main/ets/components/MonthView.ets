@@ -6,6 +6,8 @@ import { LunarUtils } from '../utils/LunarUtils';
 export struct MonthView {
   @State @Watch('onCurrentDateChange') currentDate: Date = new Date();
   @State monthDates: Date[] = [];
+  @State animationOffset: number = 0;
+  @State isAnimating: boolean = false;
   @Prop events: CalendarEvent[] = [];
   @Prop selectedDate: Date = new Date();
   onDateSelected?: (date: Date) => void;
@@ -37,6 +39,32 @@ export struct MonthView {
     return DateUtils.isSameDay(date, this.selectedDate);
   }
   
+  private animateMonthChange(direction: number) {
+    this.isAnimating = true;
+    this.animationOffset = direction * 100;
+    
+    animateTo({
+      duration: 300,
+      curve: Curve.EaseInOut,
+      onFinish: () => {
+        this.isAnimating = false;
+        this.animationOffset = 0;
+      }
+    }, () => {
+      this.animationOffset = 0;
+    });
+  }
+  
+  private previousMonth() {
+    this.animateMonthChange(-1);
+    this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
+  }
+  
+  private nextMonth() {
+    this.animateMonthChange(1);
+    this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
+  }
+  
   build() {
     Column() {
       // 月份标题
@@ -45,7 +73,7 @@ export struct MonthView {
           .backgroundColor(Color.Transparent)
           .fontColor('#007AFF')
           .onClick(() => {
-            this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
+            this.previousMonth();
           })
         
         Text(`${this.currentDate.getFullYear()}年${DateUtils.getMonthName(this.currentDate)}`)
@@ -58,7 +86,7 @@ export struct MonthView {
           .backgroundColor(Color.Transparent)
           .fontColor('#007AFF')
           .onClick(() => {
-            this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
+            this.nextMonth();
           })
       }
       .width('100%')
@@ -79,73 +107,84 @@ export struct MonthView {
       .height(30)
       .backgroundColor('#F5F5F5')
       
-      // 日期网格
-      Grid() {
-        ForEach(this.monthDates, (date: Date, index: number) => {
-          GridItem() {
-            if (this.isCurrentMonth(date)) {
-              Column() {
-                // 公历日期
-                Text(date.getDate().toString())
-                  .fontSize(14)
-                  .fontColor(DateUtils.isToday(date) ? Color.White : '#333333')
-                  .fontWeight(DateUtils.isToday(date) ? FontWeight.Bold : FontWeight.Normal)
-                
-                // 农历日期或节日
-                Text(LunarUtils.getLunarText(date))
-                  .fontSize(9)
-                  .fontColor(LunarUtils.isFestival(date) ? '#FF3B30' : '#999999')
-                  .margin({ top: 1 })
-                  .maxLines(1)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
-                
-                // 事件指示器
-                if (this.getEventsForDate(date).length > 0) {
-                  Row() {
-                    ForEach(this.getEventsForDate(date).slice(0, 3), (event: CalendarEvent) => {
-                      Circle({ width: 3, height: 3 })
-                        .fill(event.color)
-                        .margin({ right: 1 })
-                    })
-                    
-                    if (this.getEventsForDate(date).length > 3) {
-                      Text(`+${this.getEventsForDate(date).length - 3}`)
-                        .fontSize(7)
-                        .fontColor('#666666')
+      // 日期网格容器（添加动画效果）
+      Stack() {
+        Grid() {
+          ForEach(this.monthDates, (date: Date, index: number) => {
+            GridItem() {
+              if (this.isCurrentMonth(date)) {
+                Column() {
+                  // 公历日期
+                  Text(date.getDate().toString())
+                    .fontSize(14)
+                    .fontColor(DateUtils.isToday(date) ? Color.White : '#333333')
+                    .fontWeight(DateUtils.isToday(date) ? FontWeight.Bold : FontWeight.Normal)
+                  
+                  // 农历日期或节日
+                  Text(LunarUtils.getLunarText(date))
+                    .fontSize(9)
+                    .fontColor(LunarUtils.isFestival(date) ? '#FF3B30' : '#999999')
+                    .margin({ top: 1 })
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  
+                  // 事件指示器
+                  if (this.getEventsForDate(date).length > 0) {
+                    Row() {
+                      ForEach(this.getEventsForDate(date).slice(0, 3), (event: CalendarEvent) => {
+                        Circle({ width: 3, height: 3 })
+                          .fill(event.color)
+                          .margin({ right: 1 })
+                      })
+                      
+                      if (this.getEventsForDate(date).length > 3) {
+                        Text(`+${this.getEventsForDate(date).length - 3}`)
+                          .fontSize(7)
+                          .fontColor('#666666')
+                      }
                     }
+                    .justifyContent(FlexAlign.Center)
+                    .margin({ top: 1 })
                   }
-                  .justifyContent(FlexAlign.Center)
-                  .margin({ top: 1 })
                 }
-              }
-              .width('100%')
-              .height(45)
-              .justifyContent(FlexAlign.Center)
-              .backgroundColor(DateUtils.isToday(date) ? '#007AFF' : Color.Transparent)
-              .border(this.isSelected(date) && !DateUtils.isToday(date) ? 
-                { width: 1, color: '#007AFF' } : { width: 0 })
-              .borderRadius(3)
-              .margin(0.5)
-              .padding(1)
-              .onClick(() => {
-                if (this.onDateSelected) {
-                  this.onDateSelected(date);
-                }
-              })
-            } else {
-              // 非本月日期显示为空白
-              Column()
                 .width('100%')
                 .height(45)
+                .justifyContent(FlexAlign.Center)
+                .backgroundColor(DateUtils.isToday(date) ? '#007AFF' : Color.Transparent)
+                .border(this.isSelected(date) && !DateUtils.isToday(date) ? 
+                  { width: 1, color: '#007AFF' } : { width: 0 })
+                .borderRadius(3)
+                .margin(0.5)
+                .padding(1)
+                .onClick(() => {
+                  if (this.onDateSelected) {
+                    this.onDateSelected(date);
+                  }
+                })
+              } else {
+                // 非本月日期显示为空白
+                Column()
+                  .width('100%')
+                  .height(45)
+              }
             }
-          }
+          })
+        }
+        .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
+        .rowsTemplate('1fr 1fr 1fr 1fr 1fr 1fr')
+        .width('100%')
+        .height(280)
+        .padding(1)
+        .translate({ x: this.animationOffset })
+        .opacity(this.isAnimating ? 0.7 : 1.0)
+        .animation({
+          duration: 300,
+          curve: Curve.EaseInOut
         })
       }
-      .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
-      .rowsTemplate('1fr 1fr 1fr 1fr 1fr 1fr')
       .width('100%')
       .height(280)
-      .padding(1)
+      .clip(true)
     }
     .width('100%')
     .height('100%')
