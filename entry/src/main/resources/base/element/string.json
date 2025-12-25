@@ -1,0 +1,24 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "鸿蒙日历应用"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "日历应用主界面"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "日历"
+    },
+    {
+      "name": "app_name",
+      "value": "日历"
+    },
+    {
+      "name": "permission_reminder_reason",
+      "value": "需要提醒权限来为您的日程设置提醒通知"
+    }
+  ]
+}
