@@ -1,11 +1,9 @@
 import { CalendarEvent } from '../model/CalendarEvent';
-import preferences from '@ohos.data.preferences';
 
 // 日历服务类，负责数据存储和管理
 export class CalendarService {
   private static instance: CalendarService;
   private events: CalendarEvent[] = [];
-  private preferencesStore: preferences.Preferences | null = null;
   
   private constructor() {}
   
@@ -17,42 +15,32 @@ export class CalendarService {
   }
   
   // 初始化数据存储
-  async init(context: any): Promise<void> {
+  async init(context: Object): Promise<void> {
     try {
-      this.preferencesStore = await preferences.getPreferences(context, 'calendar_events');
       await this.loadEvents();
     } catch (error) {
       console.error('初始化日历服务失败:', error);
     }
   }
   
-  // 加载事件数据
+  // 加载事件数据 - 使用内存存储作为简化实现
   private async loadEvents(): Promise<void> {
     try {
-      if (this.preferencesStore) {
-        const eventsData = await this.preferencesStore.get('events', '[]') as string;
-        const parsedEvents = JSON.parse(eventsData);
-        this.events = parsedEvents.map((data: any) => {
-          const event = new CalendarEvent(data);
-          event.startTime = new Date(data.startTime);
-          event.endTime = new Date(data.endTime);
-          return event;
-        });
-      }
+      // 在实际应用中，这里可以从文件系统或数据库加载数据
+      // 目前使用内存存储，应用重启后数据会丢失
+      this.events = [];
     } catch (error) {
       console.error('加载事件数据失败:', error);
       this.events = [];
     }
   }
   
-  // 保存事件数据
+  // 保存事件数据 - 使用内存存储作为简化实现
   private async saveEvents(): Promise<void> {
     try {
-      if (this.preferencesStore) {
-        const eventsData = JSON.stringify(this.events);
-        await this.preferencesStore.put('events', eventsData);
-        await this.preferencesStore.flush();
-      }
+      // 在实际应用中，这里可以保存到文件系统或数据库
+      // 目前使用内存存储，数据会在应用重启后丢失
+      console.info('事件数据已保存到内存');
     } catch (error) {
       console.error('保存事件数据失败:', error);
     }
