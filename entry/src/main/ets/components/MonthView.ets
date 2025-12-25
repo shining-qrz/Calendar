@@ -83,57 +83,62 @@ export struct MonthView {
       Grid() {
         ForEach(this.monthDates, (date: Date, index: number) => {
           GridItem() {
-            Column() {
-              // 公历日期
-              Text(date.getDate().toString())
-                .fontSize(14)
-                .fontColor(this.isCurrentMonth(date) ? 
-                  (DateUtils.isToday(date) ? Color.White : '#333333') : '#CCCCCC')
-                .fontWeight(DateUtils.isToday(date) ? FontWeight.Bold : FontWeight.Normal)
-              
-              // 农历日期或节日
-              Text(LunarUtils.getLunarText(date))
-                .fontSize(9)
-                .fontColor(LunarUtils.isFestival(date) ? '#FF3B30' : 
-                  (this.isCurrentMonth(date) ? '#999999' : '#DDDDDD'))
-                .margin({ top: 1 })
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-              
-              // 事件指示器
-              if (this.getEventsForDate(date).length > 0) {
-                Row() {
-                  ForEach(this.getEventsForDate(date).slice(0, 3), (event: CalendarEvent) => {
-                    Circle({ width: 3, height: 3 })
-                      .fill(event.color)
-                      .margin({ right: 1 })
-                  })
-                  
-                  if (this.getEventsForDate(date).length > 3) {
-                    Text(`+${this.getEventsForDate(date).length - 3}`)
-                      .fontSize(7)
-                      .fontColor('#666666')
+            if (this.isCurrentMonth(date)) {
+              Column() {
+                // 公历日期
+                Text(date.getDate().toString())
+                  .fontSize(14)
+                  .fontColor(DateUtils.isToday(date) ? Color.White : '#333333')
+                  .fontWeight(DateUtils.isToday(date) ? FontWeight.Bold : FontWeight.Normal)
+                
+                // 农历日期或节日
+                Text(LunarUtils.getLunarText(date))
+                  .fontSize(9)
+                  .fontColor(LunarUtils.isFestival(date) ? '#FF3B30' : '#999999')
+                  .margin({ top: 1 })
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                
+                // 事件指示器
+                if (this.getEventsForDate(date).length > 0) {
+                  Row() {
+                    ForEach(this.getEventsForDate(date).slice(0, 3), (event: CalendarEvent) => {
+                      Circle({ width: 3, height: 3 })
+                        .fill(event.color)
+                        .margin({ right: 1 })
+                    })
+                    
+                    if (this.getEventsForDate(date).length > 3) {
+                      Text(`+${this.getEventsForDate(date).length - 3}`)
+                        .fontSize(7)
+                        .fontColor('#666666')
+                    }
                   }
+                  .justifyContent(FlexAlign.Center)
+                  .margin({ top: 1 })
                 }
-                .justifyContent(FlexAlign.Center)
-                .margin({ top: 1 })
               }
+              .width('100%')
+              .height(45)
+              .justifyContent(FlexAlign.Center)
+              .backgroundColor(DateUtils.isToday(date) ? '#007AFF' : Color.Transparent)
+              .border(this.isSelected(date) && !DateUtils.isToday(date) ? 
+                { width: 1, color: '#007AFF' } : { width: 0 })
+              .borderRadius(3)
+              .margin(0.5)
+              .padding(1)
+              .onClick(() => {
+                if (this.onDateSelected) {
+                  this.onDateSelected(date);
+                }
+              })
+            } else {
+              // 非本月日期显示为空白
+              Column()
+                .width('100%')
+                .height(45)
             }
-            .width('100%')
-            .height(45)
-            .justifyContent(FlexAlign.Center)
-            .backgroundColor(DateUtils.isToday(date) ? '#007AFF' : Color.Transparent)
-            .border(this.isSelected(date) && !DateUtils.isToday(date) ? 
-              { width: 1, color: '#007AFF' } : { width: 0 })
-            .borderRadius(3)
-            .margin(0.5)
-            .padding(1)
           }
-          .onClick(() => {
-            if (this.onDateSelected) {
-              this.onDateSelected(date);
-            }
-          })
         })
       }
       .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
