@@ -20,9 +20,9 @@ export class DateUtils {
   
   // 获取月份的所有日期（包含前后月份的日期以填满6周）
   static getMonthDates(date: Date): Date[] {
-    const firstDay = this.getFirstDayOfMonth(date);
-    const lastDay = this.getLastDayOfMonth(date);
-    const startDate = this.getFirstDayOfWeek(new Date(firstDay));
+    const firstDay = DateUtils.getFirstDayOfMonth(date);
+    const lastDay = DateUtils.getLastDayOfMonth(date);
+    const startDate = DateUtils.getFirstDayOfWeek(new Date(firstDay));
     
     const dates: Date[] = [];
     const current = new Date(startDate);
@@ -38,7 +38,7 @@ export class DateUtils {
   
   // 获取周的所有日期
   static getWeekDates(date: Date): Date[] {
-    const firstDay = this.getFirstDayOfWeek(new Date(date));
+    const firstDay = DateUtils.getFirstDayOfWeek(new Date(date));
     const dates: Date[] = [];
     
     for (let i = 0; i < 7; i++) {
@@ -59,7 +59,7 @@ export class DateUtils {
   
   // 判断是否为今天
   static isToday(date: Date): boolean {
-    return this.isSameDay(date, new Date());
+    return DateUtils.isSameDay(date, new Date());
   }
   
   // 格式化日期
