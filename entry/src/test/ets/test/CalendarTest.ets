@@ -1,6 +1,8 @@
 import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
 import { CalendarEvent, ReminderType } from '../../../main/ets/model/CalendarEvent';
 import { DateUtils } from '../../../main/ets/utils/DateUtils';
+import { LunarUtils } from '../../../main/ets/utils/LunarUtils';
+import { SolarTermUtils } from '../../../main/ets/utils/SolarTermUtils';
 
 export default function calendarTest() {
   describe('CalendarTest', () => {
@@ -63,6 +65,75 @@ export default function calendarTest() {
       const date = new Date('2024-12-25'); // Wednesday
       const weekdayName = DateUtils.getWeekdayName(date);
       expect(weekdayName).assertEqual('周三');
+    });
+    
+    it('should get lunar info correctly', () => {
+      const date = new Date('2025-01-29'); // 春节
+      const lunarInfo = LunarUtils.getLunarInfo(date);
+      expect(lunarInfo.month).assertEqual(1);
+      expect(lunarInfo.day).assertEqual(1);
+      expect(lunarInfo.monthName).assertEqual('正月');
+      expect(lunarInfo.dayName).assertEqual('初一');
+    });
+    
+    it('should detect festivals correctly', () => {
+      const springFestival = new Date('2025-01-29'); // 春节
+      expect(LunarUtils.isFestival(springFestival)).assertTrue();
+      expect(LunarUtils.getLunarFestival(springFestival)).assertEqual('春节');
+    });
+    
+    it('should get solar terms on exact dates only', () => {
+      // 测试2025年的精确节气日期
+      const lichun = new Date(2025, 1, 4); // 2月4日立春
+      const lichunBefore = new Date(2025, 1, 3); // 2月3日
+      const lichunAfter = new Date(2025, 1, 5); // 2月5日
+      
+      expect(SolarTermUtils.getSolarTerm(lichun)).assertEqual('立春');
+      expect(SolarTermUtils.getSolarTerm(lichunBefore)).assertEqual(null);
+      expect(SolarTermUtils.getSolarTerm(lichunAfter)).assertEqual(null);
+      
+      // 测试春分
+      const chunfen = new Date(2025, 2, 20); // 3月20日春分
+      const chunfenBefore = new Date(2025, 2, 19); // 3月19日
+      const chunfenAfter = new Date(2025, 2, 21); // 3月21日
+      
+      expect(SolarTermUtils.getSolarTerm(chunfen)).assertEqual('春分');
+      expect(SolarTermUtils.getSolarTerm(chunfenBefore)).assertEqual(null);
+      expect(SolarTermUtils.getSolarTerm(chunfenAfter)).assertEqual(null);
+    });
+    
+    it('should get year solar terms correctly', () => {
+      const yearTerms = SolarTermUtils.getYearSolarTerms(2025);
+      expect(yearTerms.size).assertEqual(24);
+      
+      // 验证几个关键节气的日期
+      let lichunFound = false;
+      let chunfenFound = false;
+      let xiazhiFound = false;
+      let dongzhiFound = false;
+      
+      for (const entry of yearTerms) {
+        const key = entry[0];
+        const date = entry[1];
+        const term = SolarTermUtils.getSolarTerm(date);
+        if (term === '立春' && date.getMonth() === 1 && date.getDate() === 4) {
+          lichunFound = true;
+        }
+        if (term === '春分' && date.getMonth() === 2 && date.getDate() === 20) {
+          chunfenFound = true;
+        }
+        if (term === '夏至' && date.getMonth() === 5 && date.getDate() === 21) {
+          xiazhiFound = true;
+        }
+        if (term === '冬至' && date.getMonth() === 11 && date.getDate() === 21) {
+          dongzhiFound = true;
+        }
+      }
+      
+      expect(lichunFound).assertTrue();
+      expect(chunfenFound).assertTrue();
+      expect(xiazhiFound).assertTrue();
+      expect(dongzhiFound).assertTrue();
     });
   });
 }

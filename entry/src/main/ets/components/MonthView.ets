@@ -12,13 +12,22 @@ export struct MonthView {
   @Prop selectedDate: Date = new Date();
   onDateSelected?: (date: Date) => void;
   onDateDoubleClick?: (date: Date) => void;
+  onMonthChanged?: (date: Date) => void;
   
   aboutToAppear() {
     this.updateMonthDates();
+    // 初始化时通知父组件当前月份
+    if (this.onMonthChanged) {
+      this.onMonthChanged(this.currentDate);
+    }
   }
   
   onCurrentDateChange() {
     this.updateMonthDates();
+    // 月份变化时通知父组件
+    if (this.onMonthChanged) {
+      this.onMonthChanged(this.currentDate);
+    }
   }
   
   private updateMonthDates() {
@@ -65,6 +74,17 @@ export struct MonthView {
     this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
   }
   
+  private getFestivalText(): string {
+    const festival = LunarUtils.getFestival(this.selectedDate) || LunarUtils.getLunarFestival(this.selectedDate);
+    const ganZhi = LunarUtils.getLunarGanZhi(this.selectedDate);
+    
+    if (festival) {
+      return `${festival} | ${ganZhi}`;
+    } else {
+      return ganZhi;
+    }
+  }
+  
   build() {
     Column() {
       // 月份标题
@@ -90,6 +110,7 @@ export struct MonthView {
           })
       }
       .width('100%')
+      .backgroundColor('#F8F8F8')
       .height(40)
       .padding({ left: 16, right: 16 })
       
@@ -105,7 +126,7 @@ export struct MonthView {
       }
       .width('100%')
       .height(30)
-      .backgroundColor('#F5F5F5')
+      .backgroundColor('#F8F8F8')
       
       // 日期网格容器（添加动画效果）
       Stack() {
@@ -185,8 +206,33 @@ export struct MonthView {
       .width('100%')
       .height(280)
       .clip(true)
+      .backgroundColor('#F8F8F8')
+      
+      // 选中日期的详细信息展示
+      Column() {
+        // 第一行：农历日期
+        Text(LunarUtils.getDetailedLunarInfo(this.selectedDate))
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#333333')
+          .margin({ bottom: 4 })
+        
+        // 第二行：节日 + 干支信息
+        Row() {
+          Text(this.getFestivalText())
+            .fontSize(12)
+            .fontColor('#666666')
+        }
+      }
+      .width('100%')
+      .backgroundColor('#F8F8F8')
+      .borderRadius(8)
+      .padding(16)
+      .margin({ top: 8, left: 20, right: 20 })
+      .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
     .height('100%')
+    .backgroundColor('#FFF8DC') // 米黄色背景
   }
 }

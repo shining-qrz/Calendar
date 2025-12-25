@@ -13,6 +13,7 @@ import { DateUtils } from '../utils/DateUtils';
 struct Index {
   @State currentView: ViewType = ViewType.MONTH;
   @State selectedDate: Date = new Date();
+  @State currentDisplayDate: Date = new Date(); // 当前显示的月份
   @State events: CalendarEvent[] = [];
   @State isLoading: boolean = true;
   
@@ -159,8 +160,13 @@ struct Index {
         .justifyContent(FlexAlign.Center)
       } else {
         Column() {
-          // 顶部工具栏（只保留"+"按钮）
+          // 顶部工具栏（左侧显示年月，右侧保留"+"按钮）
           Row() {
+            Text(`${this.currentDisplayDate.getFullYear()}/${this.currentDisplayDate.getMonth() + 1}`)
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#333333')
+            
             Blank()
             
             Button('+')
@@ -191,6 +197,9 @@ struct Index {
                 },
                 onDateDoubleClick: (date: Date) => {
                   this.showEventDialog(undefined, date);
+                },
+                onMonthChanged: (date: Date) => {
+                  this.currentDisplayDate = date;
                 }
               })
             } else if (this.currentView === ViewType.WEEK) {

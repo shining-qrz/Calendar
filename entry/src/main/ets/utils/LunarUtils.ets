@@ -1,9 +1,5 @@
-// 农历月份信息接口
-interface LunarMonthInfo {
-  month: number;
-  days: number;
-  startDate: Date;
-}
+import { i18n } from '@kit.LocalizationKit';
+import { SolarTermUtils } from './SolarTermUtils';
 
 // 农历信息接口
 interface LunarInfo {
@@ -11,9 +7,27 @@ interface LunarInfo {
   day: number;
   monthName: string;
   dayName: string;
+  isLeapMonth: boolean;
 }
 
-// 农历工具类
+// 完整日期信息接口
+interface FullDateInfo {
+  lunarDate: string;
+  ganZhiInfo: string;
+  festival?: string;
+}
+
+// 日历对象接口
+interface CalendarObject {
+  get(field: string): number;
+  setTime(time: number | Date): void;
+  getTimeInMillis(): number;
+  isLeapYear?(): boolean;
+  hasLeapMonth?(): boolean;
+  getLeapMonth?(): number;
+}
+
+// 农历工具类 - 严格使用官方LocalizationKit API
 export class LunarUtils {
   
   // 农历月份名称
@@ -29,119 +43,228 @@ export class LunarUtils {
     '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'
   ];
   
-  // 传统节日映射（简化版本，使用公历日期近似）
+  // 传统节日映射（公历节日）
   private static readonly FESTIVALS = new Map<string, string>([
-    // 固定公历节日
     ['01-01', '元旦'],
     ['02-14', '情人节'],
     ['03-08', '妇女节'],
-    ['03-12', '植树节'],
-    ['04-01', '愚人节'],
     ['05-01', '劳动节'],
-    ['05-04', '青年节'],
     ['06-01', '儿童节'],
-    ['07-01', '建党节'],
-    ['08-01', '建军节'],
-    ['09-10', '教师节'],
     ['10-01', '国庆节'],
-    ['12-24', '平安夜'],
-    ['12-25', '圣诞节'],
-    
-    // 农历节日（使用近似公历日期）
-    ['02-10', '春节'], // 2025年春节大约在2月
-    ['02-24', '元宵节'],
-    ['04-05', '清明节'],
-    ['05-31', '端午节'], // 2025年端午节大约在5月底
-    ['08-29', '中秋节'], // 2025年中秋节大约在8月底
-    ['10-11', '重阳节']
+    ['12-25', '圣诞节']
   ]);
   
-  // 简化的农历数据（2025年）
-  private static getLunar2025Data(): LunarMonthInfo[] {
-    const data: LunarMonthInfo[] = [];
-    
-    data.push({ month: 1, days: 29, startDate: new Date(2025, 0, 29) }); // 正月
-    data.push({ month: 2, days: 30, startDate: new Date(2025, 1, 28) }); // 二月
-    data.push({ month: 3, days: 29, startDate: new Date(2025, 2, 29) }); // 三月
-    data.push({ month: 4, days: 30, startDate: new Date(2025, 3, 28) }); // 四月
-    data.push({ month: 5, days: 29, startDate: new Date(2025, 4, 27) }); // 五月
-    data.push({ month: 6, days: 30, startDate: new Date(2025, 5, 26) }); // 六月
-    data.push({ month: 7, days: 29, startDate: new Date(2025, 6, 25) }); // 七月
-    data.push({ month: 8, days: 30, startDate: new Date(2025, 7, 24) }); // 八月
-    data.push({ month: 9, days: 29, startDate: new Date(2025, 8, 22) }); // 九月
-    data.push({ month: 10, days: 30, startDate: new Date(2025, 9, 22) }); // 十月
-    data.push({ month: 11, days: 29, startDate: new Date(2025, 10, 20) }); // 十一月
-    data.push({ month: 12, days: 30, startDate: new Date(2025, 11, 20) }); // 十二月
-    
-    return data;
-  }
+  // 农历节日映射（按农历日期）
+  private static readonly LUNAR_FESTIVALS = new Map<string, string>([
+    ['01-01', '春节'],
+    ['01-15', '元宵节'],
+    ['05-05', '端午节'],
+    ['07-07', '七夕节'],
+    ['08-15', '中秋节'],
+    ['09-09', '重阳节'],
+    ['12-08', '腊八节'],
+    ['12-23', '小年']
+  ]);
   
-  // 获取农历信息
+  // 天干地支
+  private static readonly TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+  private static readonly DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+  private static readonly SHENG_XIAO = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'];
+  
+  // 获取农历信息（严格使用官方API）
   static getLunarInfo(date: Date): LunarInfo {
-    const year = date.getFullYear();
+    // 创建公历日历对象
+    let gregorianCalendar = i18n.getCalendar("zh-Hans", "gregory") as CalendarObject;
+    gregorianCalendar.setTime(date);
     
-    // 简化处理，只处理2025年
-    if (year === 2025) {
-      const lunarData = LunarUtils.getLunar2025Data();
-      for (let i = 0; i < lunarData.length; i++) {
-        const lunarMonth = lunarData[i];
-        const startDate = lunarMonth.startDate;
-        const endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + lunarMonth.days - 1);
-        
-        if (date >= startDate && date <= endDate) {
-          const day = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-          const result: LunarInfo = {
-            month: lunarMonth.month,
-            day: day,
-            monthName: LunarUtils.LUNAR_MONTHS[lunarMonth.month - 1],
-            dayName: LunarUtils.LUNAR_DAYS[day - 1]
-          };
-          return result;
-        }
+    // 创建农历日历对象
+    let lunarCalendar = i18n.getCalendar("zh-Hans", "chinese") as CalendarObject;
+    lunarCalendar.setTime(gregorianCalendar.getTimeInMillis());
+    
+    // 获取农历信息
+    let lunarMonth = lunarCalendar.get("month") + 1;
+    let lunarDay = lunarCalendar.get("date");
+    
+    // 检查是否为闰月
+    let isLeapMonth = false;
+    if (lunarCalendar.hasLeapMonth && lunarCalendar.getLeapMonth) {
+      try {
+        isLeapMonth = lunarCalendar.hasLeapMonth() && lunarCalendar.getLeapMonth() === lunarMonth;
+      } catch (error) {
+        isLeapMonth = false;
       }
     }
     
-    // 默认返回（其他年份的简化处理）
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    const defaultResult: LunarInfo = {
-      month: month,
-      day: day,
-      monthName: LunarUtils.LUNAR_MONTHS[month - 1] || '正月',
-      dayName: LunarUtils.LUNAR_DAYS[day - 1] || '初一'
+    return {
+      month: lunarMonth,
+      day: lunarDay,
+      monthName: LunarUtils.LUNAR_MONTHS[lunarMonth - 1],
+      dayName: LunarUtils.LUNAR_DAYS[lunarDay - 1],
+      isLeapMonth: isLeapMonth
     };
-    return defaultResult;
   }
   
-  // 获取农历显示文本
+  // 获取干支纪年信息（严格使用官方API）
+  static getLunarGanZhi(date: Date): string {
+    // 创建公历日历对象
+    let gregorianCalendar = i18n.getCalendar("zh-Hans", "gregory") as CalendarObject;
+    gregorianCalendar.setTime(date);
+    
+    // 创建农历日历对象
+    let lunarCalendar = i18n.getCalendar("zh-Hans", "chinese") as CalendarObject;
+    lunarCalendar.setTime(gregorianCalendar.getTimeInMillis());
+    
+    // 获取农历年份（干支纪年）
+    let lunarYear = lunarCalendar.get("year");
+    let lunarMonth = lunarCalendar.get("month");
+    let lunarDay = lunarCalendar.get("date");
+    
+    // 根据API返回的年份计算干支
+    // 农历年份应该直接对应干支纪年
+    let yearTianGanIndex = (lunarYear - 1) % 10;
+    let yearDiZhiIndex = (lunarYear - 1) % 12;
+    
+    let yearTianGan = LunarUtils.TIAN_GAN[yearTianGanIndex];
+    let yearDiZhi = LunarUtils.DI_ZHI[yearDiZhiIndex];
+    let yearShengXiao = LunarUtils.SHENG_XIAO[yearDiZhiIndex];
+    
+    // 月干支和日干支需要通过API获取或计算
+    // 这里暂时返回年份信息，月日干支需要进一步研究API
+    return `${yearTianGan}${yearDiZhi}${yearShengXiao}年`;
+  }
+  
+  // 获取节气信息（使用SolarTermUtils）
+  static getSolarTerm(date: Date): string | null {
+    return SolarTermUtils.getSolarTerm(date);
+  }
+  
+  // 判断是否为节气日
+  static isSolarTerm(date: Date): boolean {
+    return SolarTermUtils.isSolarTerm(date);
+  }
+  
+  // 获取农历显示文本（优先显示节气和节日）
   static getLunarText(date: Date): string {
-    const festival = LunarUtils.getFestival(date);
+    // 首先检查是否为节气
+    let solarTerm = LunarUtils.getSolarTerm(date);
+    if (solarTerm) {
+      return solarTerm;
+    }
+    
+    // 然后检查是否为农历节日
+    let lunar = LunarUtils.getLunarInfo(date);
+    let lunarKey = `${String(lunar.month).padStart(2, '0')}-${String(lunar.day).padStart(2, '0')}`;
+    let lunarFestival = LunarUtils.LUNAR_FESTIVALS.get(lunarKey);
+    
+    if (lunarFestival) {
+      return lunarFestival;
+    }
+    
+    // 然后检查公历节日
+    let festival = LunarUtils.getFestival(date);
     if (festival) {
       return festival;
     }
     
-    const lunar = LunarUtils.getLunarInfo(date);
-    
-    // 如果是初一，显示月份名称
+    // 如果是农历初一，显示月份名称
     if (lunar.day === 1) {
-      return lunar.monthName;
+      return lunar.isLeapMonth ? `闰${lunar.monthName}` : lunar.monthName;
     }
     
+    // 否则显示农历日期
     return lunar.dayName;
   }
   
-  // 获取节日信息
+  // 获取公历节日信息
   static getFestival(date: Date): string | null {
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const key = `${month}-${day}`;
+    let month = String(date.getMonth() + 1).padStart(2, '0');
+    let day = String(date.getDate()).padStart(2, '0');
+    let key = `${month}-${day}`;
     
     return LunarUtils.FESTIVALS.get(key) || null;
   }
   
-  // 判断是否为节日
+  // 获取农历节日信息
+  static getLunarFestival(date: Date): string | null {
+    let lunar = LunarUtils.getLunarInfo(date);
+    let key = `${String(lunar.month).padStart(2, '0')}-${String(lunar.day).padStart(2, '0')}`;
+    
+    return LunarUtils.LUNAR_FESTIVALS.get(key) || null;
+  }
+  
+  // 判断是否为节日或节气（包含公历和农历节日以及节气）
   static isFestival(date: Date): boolean {
-    return LunarUtils.getFestival(date) !== null;
+    return LunarUtils.getSolarTerm(date) !== null || 
+           LunarUtils.getFestival(date) !== null || 
+           LunarUtils.getLunarFestival(date) !== null;
+  }
+  
+  // 获取详细农历信息
+  static getDetailedLunarInfo(date: Date): string {
+    let lunar = LunarUtils.getLunarInfo(date);
+    
+    let seasonalMonth = '';
+    switch (lunar.month) {
+      case 1:
+        seasonalMonth = '正月';
+        break;
+      case 2:
+        seasonalMonth = '二月';
+        break;
+      case 3:
+        seasonalMonth = '三月';
+        break;
+      case 4:
+        seasonalMonth = '四月';
+        break;
+      case 5:
+        seasonalMonth = '五月';
+        break;
+      case 6:
+        seasonalMonth = '六月';
+        break;
+      case 7:
+        seasonalMonth = '七月';
+        break;
+      case 8:
+        seasonalMonth = '八月';
+        break;
+      case 9:
+        seasonalMonth = '九月';
+        break;
+      case 10:
+        seasonalMonth = '十月';
+        break;
+      case 11:
+        seasonalMonth = '冬月';
+        break;
+      case 12:
+        seasonalMonth = '腊月';
+        break;
+      default:
+        seasonalMonth = lunar.monthName;
+    }
+    
+    let prefix = lunar.isLeapMonth ? '闰' : '';
+    return `${prefix}${seasonalMonth}${lunar.dayName}`;
+  }
+  
+  // 获取完整的日期信息展示
+  static getFullDateInfo(date: Date): FullDateInfo {
+    let lunarDate = LunarUtils.getDetailedLunarInfo(date);
+    let ganZhiInfo = LunarUtils.getLunarGanZhi(date);
+    
+    // 优先显示节气，然后是农历节日，最后是公历节日
+    let solarTerm = LunarUtils.getSolarTerm(date);
+    let lunarFestival = LunarUtils.getLunarFestival(date);
+    let publicFestival = LunarUtils.getFestival(date);
+    let festival = solarTerm || lunarFestival || publicFestival;
+    
+    let result: FullDateInfo = {
+      lunarDate: lunarDate,
+      ganZhiInfo: ganZhiInfo,
+      festival: festival || undefined
+    };
+    return result;
   }
 }
