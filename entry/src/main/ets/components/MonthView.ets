@@ -1,5 +1,6 @@
 import { CalendarEvent } from '../model/CalendarEvent';
 import { DateUtils } from '../utils/DateUtils';
+import { LunarUtils } from '../utils/LunarUtils';
 
 @Component
 export struct MonthView {
@@ -61,12 +62,12 @@ export struct MonthView {
           })
       }
       .width('100%')
-      .height(50)
+      .height(40)
       .padding({ left: 16, right: 16 })
       
       // 星期标题
       Row() {
-        ForEach(['一', '二', '三', '四', '五', '六', '日'], (weekday: string) => {
+        ForEach(['日', '一', '二', '三', '四', '五', '六'], (weekday: string) => {
           Text(weekday)
             .fontSize(14)
             .fontColor('#666666')
@@ -75,7 +76,7 @@ export struct MonthView {
         })
       }
       .width('100%')
-      .height(40)
+      .height(30)
       .backgroundColor('#F5F5F5')
       
       // 日期网格
@@ -83,38 +84,50 @@ export struct MonthView {
         ForEach(this.monthDates, (date: Date, index: number) => {
           GridItem() {
             Column() {
+              // 公历日期
               Text(date.getDate().toString())
-                .fontSize(16)
+                .fontSize(14)
                 .fontColor(this.isCurrentMonth(date) ? 
                   (DateUtils.isToday(date) ? Color.White : '#333333') : '#CCCCCC')
                 .fontWeight(DateUtils.isToday(date) ? FontWeight.Bold : FontWeight.Normal)
+              
+              // 农历日期或节日
+              Text(LunarUtils.getLunarText(date))
+                .fontSize(9)
+                .fontColor(LunarUtils.isFestival(date) ? '#FF3B30' : 
+                  (this.isCurrentMonth(date) ? '#999999' : '#DDDDDD'))
+                .margin({ top: 1 })
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
               
               // 事件指示器
               if (this.getEventsForDate(date).length > 0) {
                 Row() {
                   ForEach(this.getEventsForDate(date).slice(0, 3), (event: CalendarEvent) => {
-                    Circle({ width: 6, height: 6 })
+                    Circle({ width: 3, height: 3 })
                       .fill(event.color)
-                      .margin({ right: 2 })
+                      .margin({ right: 1 })
                   })
                   
                   if (this.getEventsForDate(date).length > 3) {
                     Text(`+${this.getEventsForDate(date).length - 3}`)
-                      .fontSize(10)
+                      .fontSize(7)
                       .fontColor('#666666')
                   }
                 }
                 .justifyContent(FlexAlign.Center)
-                .margin({ top: 2 })
+                .margin({ top: 1 })
               }
             }
             .width('100%')
-            .height('100%')
+            .height(45)
             .justifyContent(FlexAlign.Center)
-            .backgroundColor(this.isSelected(date) ? '#007AFF' : 
-              (DateUtils.isToday(date) ? '#007AFF' : Color.Transparent))
-            .borderRadius(4)
-            .margin(2)
+            .backgroundColor(DateUtils.isToday(date) ? '#007AFF' : Color.Transparent)
+            .border(this.isSelected(date) && !DateUtils.isToday(date) ? 
+              { width: 1, color: '#007AFF' } : { width: 0 })
+            .borderRadius(3)
+            .margin(0.5)
+            .padding(1)
           }
           .onClick(() => {
             if (this.onDateSelected) {
@@ -126,8 +139,8 @@ export struct MonthView {
       .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr 1fr')
       .rowsTemplate('1fr 1fr 1fr 1fr 1fr 1fr')
       .width('100%')
-      .layoutWeight(1)
-      .padding(4)
+      .height(280)
+      .padding(1)
     }
     .width('100%')
     .height('100%')

@@ -160,11 +160,6 @@ struct Index {
       } else {
         // 顶部工具栏
         Row() {
-          Text('日历')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .layoutWeight(1)
-          
           Row() {
             Button('月')
               .backgroundColor(this.currentView === ViewType.MONTH ? '#007AFF' : '#F2F2F2')
@@ -191,6 +186,8 @@ struct Index {
                 this.currentView = ViewType.DAY;
               })
           }
+          .layoutWeight(1)
+          .justifyContent(FlexAlign.Center)
           
           Button('+')
             .backgroundColor('#007AFF')
@@ -199,7 +196,6 @@ struct Index {
             .width(40)
             .height(40)
             .borderRadius(20)
-            .margin({ left: 16 })
             .onClick(() => {
               this.showEventDialog();
             })

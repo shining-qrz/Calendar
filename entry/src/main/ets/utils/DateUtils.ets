@@ -11,11 +11,13 @@ export class DateUtils {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0);
   }
   
-  // 获取周的第一天（周一）
+  // 获取周的第一天（周日）
   static getFirstDayOfWeek(date: Date): Date {
-    const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(date.setDate(diff));
+    const day = date.getDay(); // 0=周日, 1=周一, ..., 6=周六
+    const diff = date.getDate() - day; // 直接减去星期数，周日为0
+    const firstDay = new Date(date);
+    firstDay.setDate(diff);
+    return firstDay;
   }
   
   // 获取月份的所有日期（包含前后月份的日期以填满6周）
@@ -87,13 +89,13 @@ export class DateUtils {
     return months[date.getMonth()];
   }
   
-  // 获取星期名称
+  // 获取星期名称（周日为第一天）
   static getWeekdayName(date: Date): string {
     const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     return weekdays[date.getDay()];
   }
   
-  // 获取星期简称
+  // 获取星期简称（周日为第一天）
   static getWeekdayShort(date: Date): string {
     const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
     return weekdays[date.getDay()];
