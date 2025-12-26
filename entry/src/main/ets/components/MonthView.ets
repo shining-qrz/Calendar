@@ -110,7 +110,7 @@ export struct MonthView {
           })
       }
       .width('100%')
-      .backgroundColor('#FFF8DC')
+      .backgroundColor('#FFFFFF')
       .height(40)
       .padding({ left: 16, right: 16 })
       
@@ -126,7 +126,7 @@ export struct MonthView {
       }
       .width('100%')
       .height(30)
-      .backgroundColor('#FFF8DC')
+      .backgroundColor('#FFFFFF')
       
       // 日期网格容器（添加动画效果）
       Stack() {
@@ -206,7 +206,7 @@ export struct MonthView {
       .width('100%')
       .height(280)
       .clip(true)
-      .backgroundColor('#FFF8DC')
+      .backgroundColor('#FFFFFF')
       
       // 选中日期的详细信息展示
       Column() {
@@ -231,15 +231,24 @@ export struct MonthView {
         .width('100%') // Row占满Column宽度
       }
       .width('98%') // 减小宽度
-      .backgroundColor('#FFF8DC')
+      .backgroundColor('#FFFFFF')
       .borderRadius(12)
       .padding({ left: 16, right: 16, top: 12, bottom: 12 })
       .margin({ top: 8 })
       .alignItems(HorizontalAlign.Start) // Column内部元素左对齐
       .alignSelf(ItemAlign.Center) // 整个组件居中
+      
+      // 图片展示
+      Image($r('app.media.zootopia'))
+        .width('98%')
+        .layoutWeight(1) // 填充剩余高度
+        .objectFit(ImageFit.Cover) // 改为Cover以填满容器
+        .borderRadius(8)
+        .margin({ top: 12, bottom: 12, left: -4, right: -4}) // 负margin突破父容器padding
+        .alignSelf(ItemAlign.Center)
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F8F8F8') // 米黄色背景'#FFF8DC'
+    .backgroundColor('#F8F8F8')
   }
 }

@@ -169,16 +169,18 @@ struct Index {
             
             Blank()
             
-            Button('+')
-              .backgroundColor('#007AFF')
-              .fontColor(Color.White)
-              .fontSize(18)
-              .width(40)
-              .height(40)
-              .borderRadius(20)
-              .onClick(() => {
-                this.showEventDialog();
-              })
+            Button() {
+              Image($r('app.media.add_icon'))
+                .width(24)
+                .height(24)
+                .fillColor('#007AFF')
+            }
+            .backgroundColor(Color.Transparent)
+            .width(40)
+            .height(40)
+            .onClick(() => {
+              this.showEventDialog();
+            })
           }
           .width('100%')
           .height(60)
