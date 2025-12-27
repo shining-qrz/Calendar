@@ -7,6 +7,9 @@ import { WeekView } from '../components/WeekView';
 import { DayView } from '../components/DayView';
 import { EventDialog } from '../components/EventDialog';
 import { DateUtils } from '../utils/DateUtils';
+import { StorageUtils } from '../utils/StorageUtils';
+import { ReminderUtils } from '../utils/ReminderUtils';
+import { common } from '@kit.AbilityKit';
 
 @Entry
 @Component
@@ -16,6 +19,7 @@ struct Index {
   @State currentDisplayDate: Date = new Date(); // 当前显示的月份
   @State events: CalendarEvent[] = [];
   @State isLoading: boolean = true;
+  @State eventsVersion: number = 0; // 添加版本号来强制UI刷新
   
   private calendarService = CalendarService.getInstance();
   private reminderService = ReminderService.getInstance();
@@ -37,11 +41,16 @@ struct Index {
     await this.initServices();
     await this.loadEvents();
     await this.initSampleData();
+    
+    // 开发调试：测试持久化功能
+    await this.testPersistence();
   }
   
   private async initServices() {
     try {
-      await this.calendarService.init(getContext(this));
+      const context = getContext(this) as common.UIAbilityContext;
+      await this.calendarService.init(context);
+      await this.reminderService.init(context);
       this.isLoading = false;
     } catch (error) {
       console.error('初始化服务失败:', error);
@@ -51,7 +60,11 @@ struct Index {
   
   private async loadEvents() {
     try {
-      this.events = this.calendarService.getAllEvents();
+      const newEvents = this.calendarService.getAllEvents();
+      // 强制触发响应式更新：创建新的数组引用并更新版本号
+      this.events = [...newEvents];
+      this.eventsVersion++; // 强制触发UI刷新
+      console.info(`已加载 ${this.events.length} 个日程事件，版本: ${this.eventsVersion}`);
     } catch (error) {
       console.error('加载事件失败:', error);
     }
@@ -73,21 +86,48 @@ struct Index {
     }
   }
   
+  // 测试持久化功能（开发调试用）
+  private async testPersistence() {
+    try {
+      const stats = await StorageUtils.getStorageStats();
+      console.info('存储统计:', stats);
+      
+      const validation = await StorageUtils.validateData();
+      console.info('数据验证:', validation);
+      
+      if (!validation.isValid) {
+        console.warn('发现数据问题:', validation.issues);
+        const cleanedCount = await StorageUtils.cleanupInvalidData();
+        console.info(`已清理 ${cleanedCount} 个无效数据`);
+      }
+    } catch (error) {
+      console.error('测试持久化功能失败:', error);
+    }
+  }
+  
+  
   private async handleEventSave(event: CalendarEvent) {
     try {
       const existingEvent = this.calendarService.getEventById(event.id);
       if (existingEvent) {
         await this.calendarService.updateEvent(event);
+        console.info('日程更新成功');
       } else {
         await this.calendarService.addEvent(event);
+        console.info('日程添加成功');
       }
       
       // 设置提醒
       await this.reminderService.setEventReminder(event);
       
+      // 重新加载事件列表
       await this.loadEvents();
+      
+      // 强制触发UI刷新
+      console.info(`事件保存完成，当前事件总数: ${this.events.length}`);
     } catch (error) {
       console.error('保存事件失败:', error);
+      // 这里可以添加用户提示，比如Toast或AlertDialog
     }
   }
   
@@ -95,9 +135,16 @@ struct Index {
     try {
       await this.calendarService.deleteEvent(eventId);
       await this.reminderService.cancelEventReminder(eventId);
+      console.info('日程删除成功');
+      
+      // 重新加载事件列表
       await this.loadEvents();
+      
+      // 强制触发UI刷新
+      console.info(`事件删除完成，当前事件总数: ${this.events.length}`);
     } catch (error) {
       console.error('删除事件失败:', error);
+      // 这里可以添加用户提示，比如Toast或AlertDialog
     }
   }
   
@@ -194,6 +241,7 @@ struct Index {
               MonthView({
                 events: this.events,
                 selectedDate: this.selectedDate,
+                eventsVersion: this.eventsVersion, // 传递版本号
                 onDateSelected: (date: Date) => {
                   this.selectedDate = date;
                 },
@@ -208,17 +256,24 @@ struct Index {
               WeekView({
                 events: this.events,
                 selectedDate: this.selectedDate,
+                eventsVersion: this.eventsVersion, // 传递版本号
                 onDateSelected: (date: Date) => {
                   this.selectedDate = date;
                 },
                 onEventClick: (event: CalendarEvent) => {
                   this.showEventDialog(event);
+                },
+                onTimeSlotClick: (date: Date, hour: number) => {
+                  const eventDate = new Date(date);
+                  eventDate.setHours(hour, 0, 0, 0);
+                  this.showEventDialog(undefined, eventDate);
                 }
               })
             } else {
               DayView({
                 currentDate: this.selectedDate,
                 events: this.events,
+                eventsVersion: this.eventsVersion, // 传递版本号
                 onEventClick: (event: CalendarEvent) => {
                   this.showEventDialog(event);
                 },

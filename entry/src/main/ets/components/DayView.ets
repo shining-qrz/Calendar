@@ -4,11 +4,22 @@ import { DateUtils } from '../utils/DateUtils';
 @Component
 export struct DayView {
   @State currentDate: Date = new Date();
-  @Prop events: CalendarEvent[] = [];
+  @Prop @Watch('onEventsChange') events: CalendarEvent[] = [];
+  @Prop @Watch('onEventsVersionChange') eventsVersion: number = 0;
   onEventClick?: (event: CalendarEvent) => void;
   onTimeSlotClick?: (date: Date, hour: number) => void;
   
   private readonly hours: number[] = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23];
+  
+  onEventsChange() {
+    // 当events数组变化时，强制刷新UI
+    console.info(`DayView: 事件数组已更新，当前事件数量: ${this.events.length}`);
+  }
+  
+  onEventsVersionChange() {
+    // 当版本号变化时，强制刷新UI
+    console.info(`DayView: 事件版本已更新，版本号: ${this.eventsVersion}`);
+  }
   
   private getDayEvents(): CalendarEvent[] {
     return this.events.filter(event => 

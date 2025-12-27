@@ -8,7 +8,8 @@ export struct MonthView {
   @State monthDates: Date[] = [];
   @State animationOffset: number = 0;
   @State isAnimating: boolean = false;
-  @Prop events: CalendarEvent[] = [];
+  @Prop @Watch('onEventsChange') events: CalendarEvent[] = [];
+  @Prop @Watch('onEventsVersionChange') eventsVersion: number = 0;
   @Prop selectedDate: Date = new Date();
   onDateSelected?: (date: Date) => void;
   onDateDoubleClick?: (date: Date) => void;
@@ -28,6 +29,16 @@ export struct MonthView {
     if (this.onMonthChanged) {
       this.onMonthChanged(this.currentDate);
     }
+  }
+  
+  onEventsChange() {
+    // 当events数组变化时，强制刷新UI
+    console.info(`MonthView: 事件数组已更新，当前事件数量: ${this.events.length}`);
+  }
+  
+  onEventsVersionChange() {
+    // 当版本号变化时，强制刷新UI
+    console.info(`MonthView: 事件版本已更新，版本号: ${this.eventsVersion}`);
   }
   
   private updateMonthDates() {

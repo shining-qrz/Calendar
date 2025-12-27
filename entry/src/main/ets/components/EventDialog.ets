@@ -140,7 +140,8 @@ export struct EventDialog {
               .layoutWeight(1)
               .onClick(() => {
                 TimePickerDialog.show({
-                  selected: new Date(`2000-01-01T${this.startTimeStr}`),
+                  selected: new Date(`${this.startDateStr}T${this.startTimeStr}`),
+                  useMilitaryTime: true,
                   onAccept: (value: TimePickerResult) => {
                     if (value.hour !== undefined && value.minute !== undefined) {
                       this.startTimeStr = `${String(value.hour).padStart(2, '0')}:${String(value.minute).padStart(2, '0')}`;
@@ -189,7 +190,8 @@ export struct EventDialog {
               .layoutWeight(1)
               .onClick(() => {
                 TimePickerDialog.show({
-                  selected: new Date(`2000-01-01T${this.endTimeStr}`),
+                  selected: new Date(`${this.endDateStr}T${this.endTimeStr}`),
+                  useMilitaryTime: true,
                   onAccept: (value: TimePickerResult) => {
                     if (value.hour !== undefined && value.minute !== undefined) {
                       this.endTimeStr = `${String(value.hour).padStart(2, '0')}:${String(value.minute).padStart(2, '0')}`;
