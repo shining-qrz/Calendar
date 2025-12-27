@@ -1,17 +1,8 @@
 import { CalendarEvent, ReminderType } from '../model/CalendarEvent';
-import { reminderAgentManager } from '@kit.BackgroundTasksKit';
 import { notificationManager } from '@kit.NotificationKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { preferences } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
-
-// 提醒信息接口
-interface ReminderInfo {
-  eventId: string;
-  reminderId: number;
-  reminderTime: Date;
-  eventTitle: string;
-}
 
 // 提醒统计接口
 interface ReminderStats {
@@ -26,10 +17,10 @@ interface BatchSetResult {
   failed: number;
 }
 
-// 提醒服务类
+// 提醒服务类（基于定时器）
 export class ReminderService {
   private static instance: ReminderService;
-  private reminderIds: Map<string, number> = new Map();
+  private reminderTimers: Map<string, number> = new Map();
   private preferencesStore: preferences.Preferences | null = null;
   private readonly REMINDERS_KEY = 'reminder_mappings';
   
@@ -49,53 +40,15 @@ export class ReminderService {
       this.preferencesStore = await preferences.getPreferences(context, 'reminder_data');
       await this.loadReminderMappings();
       
-      // 创建通知渠道
-      await this.createNotificationSlot();
-      
       // 请求通知权限
       await this.requestNotificationPermission(context);
-      
-      // 请求代理提醒权限
-      await this.requestReminderPermission(context);
       
       // 发送测试通知验证功能
       await this.testNotification();
       
-      // 先清理所有提醒，解决数量限制问题
-      await this.cancelAllReminders();
-      
-      // 清理过期的提醒
-      await this.cleanupExpiredReminders();
-      
-      console.info('提醒服务初始化成功');
+      console.info('提醒服务初始化成功（定时器模式）');
     } catch (error) {
       console.error('初始化提醒服务失败:', error);
-    }
-  }
-  
-  // 请求代理提醒权限
-  private async requestReminderPermission(context: common.UIAbilityContext): Promise<void> {
-    try {
-      // 检查代理提醒权限
-      console.info('检查代理提醒权限...');
-      
-      // 尝试获取有效提醒来测试权限
-      try {
-        const reminders = await reminderAgentManager.getValidReminders();
-        console.info(`✅ 代理提醒权限正常，当前有 ${reminders.length} 个提醒`);
-      } catch (error) {
-        const err = error as BusinessError;
-        console.error(`❌ 代理提醒权限检查失败，错误码: ${err.code}, 信息: ${err.message}`);
-        
-        if (err.code === 201) {
-          console.error('❌ 缺少代理提醒权限，请在设置中手动开启');
-        } else if (err.code === 202) {
-          console.error('❌ 代理提醒权限被拒绝');
-        }
-      }
-    } catch (error) {
-      const err = error as BusinessError;
-      console.error(`检查代理提醒权限失败，错误码: ${err.code}, 信息: ${err.message}`);
     }
   }
   
@@ -109,17 +62,17 @@ export class ReminderService {
       const mappingsJson = await this.preferencesStore.get(this.REMINDERS_KEY, '{}') as string;
       const mappingsData: Record<string, number> = JSON.parse(mappingsJson) as Record<string, number>;
       
-      this.reminderIds.clear();
+      this.reminderTimers.clear();
       const eventIds = Object.keys(mappingsData);
       for (const eventId of eventIds) {
-        this.reminderIds.set(eventId, mappingsData[eventId]);
+        this.reminderTimers.set(eventId, mappingsData[eventId]);
       }
       
-      console.info(`已加载 ${this.reminderIds.size} 个提醒映射`);
+      console.info(`已加载 ${this.reminderTimers.size} 个提醒映射`);
     } catch (error) {
       const err = error as BusinessError;
       console.error(`加载提醒映射失败，错误码: ${err.code}, 信息: ${err.message}`);
-      this.reminderIds.clear();
+      this.reminderTimers.clear();
     }
   }
   
@@ -131,61 +84,26 @@ export class ReminderService {
       }
       
       const mappingsData: Record<string, number> = {};
-      this.reminderIds.forEach((reminderId: number, eventId: string) => {
-        mappingsData[eventId] = reminderId;
+      this.reminderTimers.forEach((timerId: number, eventId: string) => {
+        mappingsData[eventId] = timerId;
       });
       
       const mappingsJson = JSON.stringify(mappingsData);
       await this.preferencesStore.put(this.REMINDERS_KEY, mappingsJson);
       await this.preferencesStore.flush();
       
-      console.info(`已保存 ${this.reminderIds.size} 个提醒映射`);
+      console.info(`已保存 ${this.reminderTimers.size} 个提醒映射`);
     } catch (error) {
       const err = error as BusinessError;
       console.error(`保存提醒映射失败，错误码: ${err.code}, 信息: ${err.message}`);
     }
   }
   
-  // 测试立即提醒（用于调试）
-  async testImmediateReminder(): Promise<void> {
-    try {
-      const now = new Date();
-      const testTime = new Date(now.getTime() + 30 * 1000); // 30秒后
-      
-      const reminderRequest: reminderAgentManager.ReminderRequestCalendar = {
-        reminderType: reminderAgentManager.ReminderType.REMINDER_TYPE_CALENDAR,
-        dateTime: {
-          year: testTime.getFullYear(),
-          month: testTime.getMonth() + 1,
-          day: testTime.getDate(),
-          hour: testTime.getHours(),
-          minute: testTime.getMinutes(),
-          second: testTime.getSeconds()
-        },
-        title: `🔔 测试提醒`,
-        content: `这是一个30秒后的测试提醒 - ${testTime.toLocaleString()}`,
-        notificationId: Date.now(),
-        repeatMonths: [],
-        repeatDays: [],
-        daysOfWeek: []
-      };
-      
-      console.info('测试提醒配置:', JSON.stringify(reminderRequest, null, 2));
-      
-      const reminderId = await reminderAgentManager.publishReminder(reminderRequest);
-      console.info(`✅ 测试提醒设置成功，ID: ${reminderId}, 将在30秒后触发`);
-      
-    } catch (error) {
-      const err = error as BusinessError;
-      console.error(`❌ 测试提醒失败，错误码: ${err.code}, 信息: ${err.message}`);
-    }
-  }
-  
-  // 测试通知功能（用于验证通知系统）
+  // 测试通知功能
   async testNotification(): Promise<void> {
     try {
       const notificationRequest: notificationManager.NotificationRequest = {
-        id: Date.now(), // 使用时间戳作为唯一ID
+        id: Date.now(),
         content: {
           notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
           normal: {
@@ -198,28 +116,47 @@ export class ReminderService {
 
       await notificationManager.publish(notificationRequest);
       console.info('✅ 测试通知发送成功');
+      
+      // 添加一个10秒后的测试定时器
+      setTimeout(() => {
+        console.info('🔔 10秒测试定时器触发成功！');
+        this.sendTestReminderNotification();
+      }, 10000);
+      
+      console.info('⏰ 已设置10秒后的测试定时器');
+      
     } catch (error) {
       const err = error as BusinessError;
       console.error(`❌ 测试通知发送失败，错误码: ${err.code}, 信息: ${err.message}`);
     }
   }
   
-  // 创建通知渠道（API 21中可能不需要显式创建通知槽）
-  private async createNotificationSlot(): Promise<void> {
+  // 发送测试提醒通知
+  private async sendTestReminderNotification(): Promise<void> {
     try {
-      // 在API 21中，通知槽可能是自动管理的
-      // 我们只需要确保通知权限已开启
-      console.info('✅ 通知渠道准备完成（API 21自动管理）');
+      const notificationRequest: notificationManager.NotificationRequest = {
+        id: Date.now(),
+        content: {
+          notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
+          normal: {
+            title: "🔔 定时器测试",
+            text: "定时器功能正常工作！",
+            additionalText: "测试提醒"
+          }
+        }
+      };
+
+      await notificationManager.publish(notificationRequest);
+      console.info('✅ 测试定时器提醒发送成功');
     } catch (error) {
       const err = error as BusinessError;
-      console.error(`❌ 通知渠道准备失败，错误码: ${err.code}, 信息: ${err.message}`);
+      console.error(`❌ 测试定时器提醒发送失败，错误码: ${err.code}, 信息: ${err.message}`);
     }
   }
   
   // 请求通知权限
   private async requestNotificationPermission(context: common.UIAbilityContext): Promise<void> {
     try {
-      // 检查是否已有通知权限
       const isEnabled = await notificationManager.isNotificationEnabled();
       console.info(`通知权限状态: ${isEnabled}`);
       
@@ -245,27 +182,7 @@ export class ReminderService {
     }
   }
   
-  // 检查并管理提醒数量限制
-  private async manageReminderLimit(): Promise<void> {
-    try {
-      const validReminders = await this.getValidReminders();
-      console.info(`当前系统中有 ${validReminders.length} 个有效提醒`);
-      
-      // 如果提醒数量接近限制（假设限制是30个），清理一些旧的
-      if (validReminders.length >= 25) {
-        console.warn('提醒数量接近限制，开始清理旧提醒');
-        
-        // 清理所有提醒，重新开始
-        await this.cancelAllReminders();
-        console.info('已清理所有旧提醒');
-      }
-    } catch (error) {
-      const err = error as BusinessError;
-      console.error(`管理提醒限制失败，错误码: ${err.code}, 信息: ${err.message}`);
-    }
-  }
-  
-  // 设置事件提醒（混合提醒方案）
+  // 设置事件提醒（定时器方式）
   async setEventReminder(event: CalendarEvent): Promise<void> {
     try {
       // 先取消已存在的提醒
@@ -286,99 +203,33 @@ export class ReminderService {
         return;
       }
       
-      // 检查权限状态
-      const hasPermission = await this.checkReminderPermission();
-      if (!hasPermission) {
-        console.error('❌ 提醒权限未开启，无法设置提醒');
-        throw new Error('提醒权限未开启');
-      }
-      
-      // 尝试使用简单的定时器 + 通知方式
+      // 使用定时器 + 通知方式
       const delay = reminderTime.getTime() - now.getTime();
-      if (delay > 0 && delay < 24 * 60 * 60 * 1000) { // 24小时内
-        console.info(`使用定时器方式设置提醒，延迟: ${delay}ms`);
-        
-        setTimeout(async () => {
-          try {
-            await this.sendReminderNotification(event);
-          } catch (error) {
-            console.error('发送提醒通知失败:', error);
-          }
-        }, delay);
-        
-        // 保存提醒映射（使用负数表示定时器提醒）
-        this.reminderIds.set(event.id, -Date.now());
-        await this.saveReminderMappings();
-        
-        console.info(`✅ 设置定时器提醒成功: ${event.title}, 将在 ${delay}ms 后触发`);
-        return;
-      }
+      console.info(`使用定时器方式设置提醒，延迟: ${delay}ms (${Math.round(delay/1000)}秒)`);
       
-      // 如果超过24小时，使用系统提醒方式
-      console.info('使用系统代理提醒方式');
+      const timerId = setTimeout(async () => {
+        try {
+          console.info(`⏰ 定时器触发 - 发送提醒: ${event.title}`);
+          await this.sendReminderNotification(event);
+          // 提醒发送后清理映射
+          this.reminderTimers.delete(event.id);
+          await this.saveReminderMappings();
+          console.info(`✅ 提醒处理完成并清理映射: ${event.title}`);
+        } catch (error) {
+          console.error('发送提醒通知失败:', error);
+        }
+      }, delay);
       
-      // 根据API 21创建系统级代理提醒请求（使用Calendar类型）
-      const reminderRequest: reminderAgentManager.ReminderRequestCalendar = {
-        reminderType: reminderAgentManager.ReminderType.REMINDER_TYPE_CALENDAR,
-        dateTime: {
-          year: reminderTime.getFullYear(),
-          month: reminderTime.getMonth() + 1,
-          day: reminderTime.getDate(),
-          hour: reminderTime.getHours(),
-          minute: reminderTime.getMinutes(),
-          second: 0
-        },
-        // 提醒内容
-        title: `📅 ${event.title}`,
-        content: this.generateReminderContent(event),
-        // 通知相关设置
-        notificationId: this.generateNotificationId(event.id),
-        // 添加重复设置确保提醒触发
-        repeatMonths: [],
-        repeatDays: [],
-        daysOfWeek: []
-      };
-      
-      console.info('提醒请求配置:', JSON.stringify(reminderRequest, null, 2));
-      
-      const reminderId: number = await reminderAgentManager.publishReminder(reminderRequest);
-      this.reminderIds.set(event.id, reminderId);
+      // 保存提醒映射 - 注意：setTimeout返回的是NodeJS.Timeout，需要转换
+      const timerIdNumber = Number(timerId);
+      this.reminderTimers.set(event.id, timerIdNumber);
       await this.saveReminderMappings();
       
-      console.info(`✅ 设置系统提醒成功: ${event.title}, 提醒时间: ${reminderTime.toLocaleString()}, 提醒ID: ${reminderId}`);
+      console.info(`✅ 设置定时器提醒成功: ${event.title}, 将在 ${Math.round(delay/1000)}秒 后触发, 定时器ID: ${timerIdNumber}`);
       
     } catch (error) {
       const err = error as BusinessError;
       console.error(`❌ 设置提醒失败，错误码: ${err.code}, 信息: ${err.message}`);
-      
-      // 如果系统提醒失败，尝试使用定时器方式作为备选
-      if (err.code === 1700002) {
-        console.warn('系统提醒失败，尝试使用定时器备选方案');
-        try {
-          const reminderTime = this.calculateReminderTime(event);
-          const now = new Date();
-          const delay = reminderTime.getTime() - now.getTime();
-          
-          if (delay > 0 && delay < 24 * 60 * 60 * 1000) {
-            setTimeout(async () => {
-              try {
-                await this.sendReminderNotification(event);
-              } catch (notifyError) {
-                console.error('发送备选提醒通知失败:', notifyError);
-              }
-            }, delay);
-            
-            this.reminderIds.set(event.id, -Date.now());
-            await this.saveReminderMappings();
-            
-            console.info(`✅ 设置备选定时器提醒成功: ${event.title}`);
-            return;
-          }
-        } catch (fallbackError) {
-          console.error('备选方案也失败:', fallbackError);
-        }
-      }
-      
       throw new Error(`设置提醒失败: ${err.message}`);
     }
   }
@@ -406,43 +257,22 @@ export class ReminderService {
     }
   }
   
-  // 验证提醒是否成功创建
-  private async verifyReminderCreated(reminderId: number, eventTitle: string): Promise<void> {
-    try {
-      const validReminders = await this.getValidReminders();
-      const foundReminder = validReminders.find(r => {
-        // 由于API限制，我们通过标题来验证
-        return r.title && r.title.includes(eventTitle);
-      });
-      
-      if (foundReminder) {
-        console.info(`✅ 提醒验证成功: ${eventTitle} (ID: ${reminderId})`);
-      } else {
-        console.warn(`⚠️ 提醒验证失败: 未找到 ${eventTitle} 的提醒`);
-      }
-      
-      console.info(`当前系统中共有 ${validReminders.length} 个有效提醒`);
-    } catch (error) {
-      const err = error as BusinessError;
-      console.error(`验证提醒失败，错误码: ${err.code}, 信息: ${err.message}`);
-    }
-  }
+  // 取消事件提醒
   async cancelEventReminder(eventId: string): Promise<void> {
     try {
-      const reminderId = this.reminderIds.get(eventId);
-      if (reminderId !== undefined) {
-        await reminderAgentManager.cancelReminder(reminderId);
-        this.reminderIds.delete(eventId);
+      const timerId = this.reminderTimers.get(eventId);
+      if (timerId !== undefined) {
+        clearTimeout(timerId);
+        this.reminderTimers.delete(eventId);
         await this.saveReminderMappings();
-        console.info(`✅ 取消提醒成功: 事件ID ${eventId}, 提醒ID ${reminderId}`);
+        console.info(`✅ 取消定时器提醒成功: 事件ID ${eventId}`);
       } else {
-        console.warn(`⚠️ 未找到事件 ${eventId} 的提醒ID`);
+        console.warn(`⚠️ 未找到事件 ${eventId} 的定时器ID`);
       }
     } catch (error) {
       const err = error as BusinessError;
       console.error(`❌ 取消提醒失败，错误码: ${err.code}, 信息: ${err.message}`);
-      // 即使取消失败，也要从映射中移除
-      this.reminderIds.delete(eventId);
+      this.reminderTimers.delete(eventId);
       await this.saveReminderMappings();
     }
   }
@@ -454,7 +284,6 @@ export class ReminderService {
     
     switch (event.reminder) {
       case ReminderType.AT_TIME:
-        // 准时提醒
         break;
       case ReminderType.FIVE_MINUTES:
         reminderTime.setMinutes(reminderTime.getMinutes() - 5);
@@ -496,7 +325,6 @@ export class ReminderService {
       content += `\n描述: ${event.description}`;
     }
     
-    // 添加提醒类型说明
     const reminderTypeText = this.getReminderTypeText(event.reminder);
     if (reminderTypeText !== '准时') {
       content += `\n提醒: ${reminderTypeText}`;
@@ -521,136 +349,46 @@ export class ReminderService {
   
   // 生成通知ID
   private generateNotificationId(eventId: string): number {
-    // 使用事件ID的哈希值作为通知ID
     let hash = 0;
     for (let i = 0; i < eventId.length; i++) {
       const char = eventId.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
+      hash = hash & hash;
     }
-    return Math.abs(hash) % 1000000; // 限制在6位数内
-  }
-  
-  // 获取所有有效的提醒
-  async getValidReminders(): Promise<Array<reminderAgentManager.ReminderRequest>> {
-    try {
-      const reminders = await reminderAgentManager.getValidReminders();
-      console.info(`当前系统中有 ${reminders.length} 个有效提醒`);
-      return reminders;
-    } catch (error) {
-      const err = error as BusinessError;
-      console.error(`获取有效提醒失败，错误码: ${err.code}, 信息: ${err.message}`);
-      return [];
-    }
+    return Math.abs(hash) % 1000000;
   }
   
   // 获取提醒统计信息
   async getReminderStats(): Promise<ReminderStats> {
-    try {
-      const validReminders = await this.getValidReminders();
-      const now = new Date();
-      const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
-      
-      let upcomingCount = 0;
-      for (const reminder of validReminders) {
-        if (reminder.reminderType === reminderAgentManager.ReminderType.REMINDER_TYPE_CALENDAR) {
-          const calendarReminder = reminder as reminderAgentManager.ReminderRequestCalendar;
-          if (calendarReminder.dateTime) {
-            const reminderTime = new Date(
-              calendarReminder.dateTime.year || 0,
-              (calendarReminder.dateTime.month || 1) - 1,
-              calendarReminder.dateTime.day || 1,
-              calendarReminder.dateTime.hour || 0,
-              calendarReminder.dateTime.minute || 0
-            );
-            
-            if (reminderTime >= now && reminderTime <= nextHour) {
-              upcomingCount++;
-            }
-          }
-        }
-      }
-      
-      return {
-        totalReminders: this.reminderIds.size,
-        activeReminders: validReminders.length,
-        upcomingReminders: upcomingCount
-      } as ReminderStats;
-    } catch (error) {
-      const err = error as BusinessError;
-      console.error(`获取提醒统计失败，错误码: ${err.code}, 信息: ${err.message}`);
-      return {
-        totalReminders: 0,
-        activeReminders: 0,
-        upcomingReminders: 0
-      } as ReminderStats;
-    }
+    return {
+      totalReminders: this.reminderTimers.size,
+      activeReminders: this.reminderTimers.size,
+      upcomingReminders: 0
+    } as ReminderStats;
   }
   
   // 清理过期的提醒
   async cleanupExpiredReminders(): Promise<number> {
-    try {
-      const validReminders = await this.getValidReminders();
-      // 简化实现：直接清理所有映射中不存在的提醒ID
-      const toRemove: string[] = [];
-      
-      // 由于API限制，暂时跳过详细的ID匹配，直接进行基本清理
-      this.reminderIds.forEach((reminderId: number, eventId: string) => {
-        // 这里可以添加更多的验证逻辑
-        // 暂时保留所有映射
-      });
-      
-      let cleanedCount = 0;
-      
-      // 移除无效的映射
-      for (const eventId of toRemove) {
-        this.reminderIds.delete(eventId);
-        cleanedCount++;
-      }
-      
-      if (cleanedCount > 0) {
-        await this.saveReminderMappings();
-        console.info(`清理了 ${cleanedCount} 个过期提醒映射`);
-      }
-      
-      return cleanedCount;
-    } catch (error) {
-      const err = error as BusinessError;
-      console.error(`清理过期提醒失败，错误码: ${err.code}, 信息: ${err.message}`);
-      return 0;
-    }
+    return 0;
   }
   
   // 取消所有提醒
   async cancelAllReminders(): Promise<void> {
-    try {
-      await reminderAgentManager.cancelAllReminders();
-      this.reminderIds.clear();
-      await this.saveReminderMappings();
-      console.info('✅ 取消所有提醒成功');
-    } catch (error) {
-      const err = error as BusinessError;
-      console.error(`❌ 取消所有提醒失败，错误码: ${err.code}, 信息: ${err.message}`);
-      throw new Error(`取消所有提醒失败: ${err.message}`);
-    }
+    this.reminderTimers.forEach((timerId: number) => {
+      clearTimeout(timerId);
+    });
+    
+    this.reminderTimers.clear();
+    await this.saveReminderMappings();
+    console.info('✅ 取消所有定时器提醒成功');
   }
   
   // 检查提醒权限
   async checkReminderPermission(): Promise<boolean> {
     try {
-      // 检查通知权限
       const isNotificationEnabled = await notificationManager.isNotificationEnabled();
-      if (!isNotificationEnabled) {
-        console.warn('通知权限未开启');
-        return false;
-      }
-      
-      // 尝试获取有效提醒来检查提醒权限
-      await this.getValidReminders();
-      return true;
+      return isNotificationEnabled;
     } catch (error) {
-      const err = error as BusinessError;
-      console.error(`提醒权限检查失败，错误码: ${err.code}, 信息: ${err.message}`);
       return false;
     }
   }
@@ -665,13 +403,10 @@ export class ReminderService {
         await this.setEventReminder(event);
         successCount++;
       } catch (error) {
-        const err = error as BusinessError;
-        console.error(`批量设置提醒失败 - 事件: ${event.title}，错误码: ${err.code}, 信息: ${err.message}`);
         failedCount++;
       }
     }
     
-    console.info(`批量设置提醒完成: 成功 ${successCount}, 失败 ${failedCount}`);
     return { success: successCount, failed: failedCount } as BatchSetResult;
   }
 }
