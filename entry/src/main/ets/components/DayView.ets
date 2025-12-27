@@ -134,19 +134,12 @@ export struct DayView {
                   .strokeWidth(1)
                 
                 Column() {
-                  ForEach(this.getHourEvents(hour), (event: CalendarEvent) => {
-                    this.EventItem(event)
-                  })
+                  this.HourEventsLayout(this.getHourEvents(hour), hour)
                 }
                 .width('100%')
                 .height(60)
                 .justifyContent(FlexAlign.Start)
                 .alignItems(HorizontalAlign.Start)
-                .onClick(() => {
-                  if (this.onTimeSlotClick) {
-                    this.onTimeSlotClick(this.currentDate, hour);
-                  }
-                })
               }
               .layoutWeight(1)
             }
@@ -167,48 +160,66 @@ export struct DayView {
     return this.getDayEvents().filter(event => event.isAllDay);
   }
   
-  @Builder EventItem(event: CalendarEvent) {
+  @Builder EventItem(event: CalendarEvent, width?: string) {
     Row() {
       Column()
-        .width(4)
+        .width(3)
         .height('100%')
         .backgroundColor(event.color)
-        .margin({ right: 8 })
+        .margin({ right: 6 })
       
       Column() {
         Text(event.title)
-          .fontSize(14)
+          .fontSize(width ? 12 : 14)
           .fontWeight(FontWeight.Medium)
           .fontColor('#333333')
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         
-        if (event.description) {
-          Text(event.description)
-            .fontSize(12)
-            .fontColor('#666666')
-            .maxLines(2)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .margin({ top: 2 })
-        }
-        
         Text(`${DateUtils.formatDate(new Date(event.startTime), 'HH:mm')} - ${DateUtils.formatDate(new Date(event.endTime), 'HH:mm')}`)
-          .fontSize(12)
+          .fontSize(width ? 10 : 12)
           .fontColor('#999999')
           .margin({ top: 2 })
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
     }
-    .width('100%')
+    .width(width || '100%')
     .backgroundColor('#F8F8F8')
-    .borderRadius(8)
-    .padding(12)
-    .margin({ bottom: 8 })
+    .borderRadius(6)
+    .padding(width ? 8 : 12)
+    .margin({ bottom: 4, right: width ? 2 : 0 })
     .onClick(() => {
       if (this.onEventClick) {
         this.onEventClick(event);
       }
     })
+  }
+  
+  @Builder HourEventsLayout(events: CalendarEvent[], hour: number) {
+    if (events.length === 0) {
+      // 空白区域，可点击添加事件
+      Row() {}
+        .width('100%')
+        .height('100%')
+        .onClick(() => {
+          if (this.onTimeSlotClick) {
+            this.onTimeSlotClick(this.currentDate, hour);
+          }
+        })
+    } else if (events.length === 1) {
+      // 单个事件，占满宽度
+      this.EventItem(events[0])
+    } else {
+      // 多个事件，横向排列
+      Row() {
+        ForEach(events, (event: CalendarEvent, index: number) => {
+          this.EventItem(event, `${Math.floor(96 / events.length)}%`)
+        })
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.SpaceBetween)
+      .alignItems(VerticalAlign.Top)
+    }
   }
 }

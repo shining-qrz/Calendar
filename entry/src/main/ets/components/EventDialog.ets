@@ -47,6 +47,8 @@ export struct EventDialog {
             .backgroundColor('#FF3B30')
             .fontColor(Color.White)
             .fontSize(14)
+            .width(60)
+            .height(20)
             .onClick(() => {
               if (this.onDelete) {
                 this.onDelete(this.event.id);
