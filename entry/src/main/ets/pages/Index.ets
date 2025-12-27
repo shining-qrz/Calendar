@@ -50,7 +50,7 @@ struct Index {
     try {
       const context = getContext(this) as common.UIAbilityContext;
       await this.calendarService.init(context);
-      await this.reminderService.init(context);
+      // await this.reminderService.init(context);
       this.isLoading = false;
     } catch (error) {
       console.error('初始化服务失败:', error);
@@ -76,7 +76,7 @@ struct Index {
         const sampleEvents = SampleDataGenerator.generateSampleEvents();
         for (const event of sampleEvents) {
           await this.calendarService.addEvent(event);
-          await this.reminderService.setEventReminder(event);
+          // await this.reminderService.setEventReminder(event);
         }
         await this.loadEvents();
         console.info('已生成示例数据');

@@ -1,4 +1,3 @@
-import { ReminderService } from '../service/ReminderService';
 import { CalendarEvent, ReminderType } from '../model/CalendarEvent';
 
 // 提醒选项接口
@@ -12,13 +11,6 @@ interface ReminderValidationResult {
   valid: CalendarEvent[];
   invalid: CalendarEvent[];
   expired: CalendarEvent[];
-}
-
-// 提醒系统状态接口
-interface ReminderSystemStatus {
-  hasPermission: boolean;
-  activeReminders: number;
-  systemSupported: boolean;
 }
 
 // 提醒工具类，用于管理和调试提醒功能
@@ -192,32 +184,5 @@ export class ReminderUtils {
       if (!timeA || !timeB) return 0;
       return timeA.getTime() - timeB.getTime();
     });
-  }
-  
-  // 批量检查提醒权限和状态
-  static async checkReminderSystemStatus(): Promise<ReminderSystemStatus> {
-    try {
-      const reminderService = ReminderService.getInstance();
-      
-      // 检查权限
-      const hasPermission = await reminderService.checkReminderPermission();
-      
-      // 获取活跃提醒数量
-      const validReminders = await reminderService.getValidReminders();
-      const activeReminders = validReminders.length;
-      
-      return {
-        hasPermission,
-        activeReminders,
-        systemSupported: true
-      } as ReminderSystemStatus;
-    } catch (error) {
-      console.error('检查提醒系统状态失败:', error);
-      return {
-        hasPermission: false,
-        activeReminders: 0,
-        systemSupported: false
-      } as ReminderSystemStatus;
-    }
   }
 }
