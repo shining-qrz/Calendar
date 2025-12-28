@@ -253,7 +253,7 @@ export struct MonthView {
       Image($r('app.media.zootopia'))
         .width('98%')
         .layoutWeight(1) // 填充剩余高度
-        .objectFit(ImageFit.Cover) // 改为Cover以填满容器
+        .objectFit(ImageFit.Cover) // 填满容器
         .borderRadius(8)
         .margin({ top: 12, bottom: 12, left: -4, right: -4}) // 负margin突破父容器padding
         .alignSelf(ItemAlign.Center)

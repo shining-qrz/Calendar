@@ -89,13 +89,13 @@ export class DateUtils {
     return months[date.getMonth()];
   }
   
-  // 获取星期名称（周日为第一天）
+  // 获取星期名称
   static getWeekdayName(date: Date): string {
     const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     return weekdays[date.getDay()];
   }
   
-  // 获取星期简称（周日为第一天）
+  // 获取星期简称
   static getWeekdayShort(date: Date): string {
     const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
     return weekdays[date.getDay()];

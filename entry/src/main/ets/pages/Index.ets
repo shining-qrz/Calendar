@@ -281,6 +281,9 @@ struct Index {
                   const eventDate = new Date(date);
                   eventDate.setHours(hour, 0, 0, 0);
                   this.showEventDialog(undefined, eventDate);
+                },
+                onDateChange: (date: Date) => {
+                  this.selectedDate = date;
                 }
               })
             }

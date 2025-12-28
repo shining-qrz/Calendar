@@ -3,32 +3,59 @@ import { DateUtils } from '../utils/DateUtils';
 
 @Component
 export struct DayView {
-  @State currentDate: Date = new Date();
+  @Prop @Watch('onCurrentDateChange') currentDate: Date = new Date();
+  @State refreshKey: number = 0; // 用于强制刷新UI
+  @State dayEvents: CalendarEvent[] = []; // 缓存当天的事件
   @Prop @Watch('onEventsChange') events: CalendarEvent[] = [];
   @Prop @Watch('onEventsVersionChange') eventsVersion: number = 0;
   onEventClick?: (event: CalendarEvent) => void;
   onTimeSlotClick?: (date: Date, hour: number) => void;
+  onDateChange?: (date: Date) => void; // 新增日期变化回调
   
   private readonly hours: number[] = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23];
   
+  onCurrentDateChange() {
+    // 当日期变化时，更新当天事件并强制刷新UI
+    this.updateDayEvents();
+    this.refreshKey++;
+    console.info(`DayView: 当前日期已更新: ${this.currentDate.toDateString()}, refreshKey: ${this.refreshKey}`);
+  }
+  
   onEventsChange() {
-    // 当events数组变化时，强制刷新UI
+    // 当events数组变化时，更新当天事件并强制刷新UI
+    this.updateDayEvents();
     console.info(`DayView: 事件数组已更新，当前事件数量: ${this.events.length}`);
   }
   
   onEventsVersionChange() {
-    // 当版本号变化时，强制刷新UI
+    // 当版本号变化时，更新当天事件并强制刷新UI
+    this.updateDayEvents();
     console.info(`DayView: 事件版本已更新，版本号: ${this.eventsVersion}`);
   }
   
+  private updateDayEvents() {
+    const currentDateStr = this.currentDate.toDateString();
+    const filteredEvents = this.events.filter(event => {
+      const eventDateStr = new Date(event.startTime).toDateString();
+      const isSame = DateUtils.isSameDay(new Date(event.startTime), this.currentDate);
+      console.info(`  检查事件 ${event.title}: 事件日期=${eventDateStr}, 当前日期=${currentDateStr}, 匹配=${isSame}`);
+      return isSame;
+    });
+    this.dayEvents = [...filteredEvents]; // 确保引用更新
+    console.info(`DayView: 更新${currentDateStr}的事件，共${this.dayEvents.length}个`);
+  }
+  
+  aboutToAppear() {
+    // 组件初始化时更新事件
+    this.updateDayEvents();
+  }
+  
   private getDayEvents(): CalendarEvent[] {
-    return this.events.filter(event => 
-      DateUtils.isSameDay(new Date(event.startTime), this.currentDate)
-    );
+    return this.dayEvents;
   }
   
   private getHourEvents(hour: number): CalendarEvent[] {
-    return this.getDayEvents().filter(event => {
+    return this.dayEvents.filter(event => {
       const eventHour = new Date(event.startTime).getHours();
       return eventHour === hour;
     });
@@ -42,9 +69,11 @@ export struct DayView {
           .backgroundColor(Color.Transparent)
           .fontColor('#007AFF')
           .onClick(() => {
-            const newDate = new Date(this.currentDate);
+            const newDate = new Date(this.currentDate.getTime());
             newDate.setDate(newDate.getDate() - 1);
-            this.currentDate = newDate;
+            if (this.onDateChange) {
+              this.onDateChange(newDate);
+            }
           })
         
         Column() {
@@ -63,9 +92,11 @@ export struct DayView {
           .backgroundColor(Color.Transparent)
           .fontColor('#007AFF')
           .onClick(() => {
-            const newDate = new Date(this.currentDate);
+            const newDate = new Date(this.currentDate.getTime());
             newDate.setDate(newDate.getDate() + 1);
-            this.currentDate = newDate;
+            if (this.onDateChange) {
+              this.onDateChange(newDate);
+            }
           })
       }
       .width('100%')
@@ -145,7 +176,7 @@ export struct DayView {
             }
             .width('100%')
             .height(60)
-          })
+          }, (hour: number) => `hour-${hour}-${this.refreshKey}`)
         }
       }
       .layoutWeight(1)
@@ -215,7 +246,7 @@ export struct DayView {
       Row() {
         ForEach(events, (event: CalendarEvent, index: number) => {
           this.EventItem(event, `${Math.floor(96 / events.length)}%`)
-        })
+        }, (event: CalendarEvent) => `event-${event.id || event.title}-${hour}`)
       }
       .width('100%')
       .justifyContent(FlexAlign.SpaceBetween)
